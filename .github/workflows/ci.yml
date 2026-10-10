@@ -27,6 +27,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm build:admin
+      - run: pnpm --filter @iitk-bicycle/mobile export:web
 
   db:
     name: Database tests (pgTAP)
