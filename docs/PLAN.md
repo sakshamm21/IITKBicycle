@@ -46,6 +46,18 @@ Kanpur. Start with IITK, then add other colleges without a rewrite.
 
 App ID: `com.sakshamm21.iitkbicycle`.
 
+## Current implementation status (October 2026)
+
+The first local-first MVP implementation is in the pull request for this plan. The current code includes:
+
+- Institutional email sign-up/sign-in, campus eligibility state and invited-guest registration flow.
+- PostgreSQL tables, row-level security, audit events, and guarded RPCs for ride requests, attendant release/return, cancellation, guest invitations, rider approvals and issue status.
+- Rider home, bike availability, manual bike-code request, ride history/profile and safety issue reporting.
+- Responsive staff console for overview, rider approval, fleet/stands visibility, ride hand-offs, issue triage and guest invitations.
+- Local Supabase seed inventory, setup guide and pgTAP schema checks.
+
+Still planned before describing this as a production-ready launch: native QR-camera scanning, return-photo evidence, live map visualizations, full fleet/stand create-edit-retire tooling, persistent native session storage, automated token refresh, push notifications, account deletion/privacy pages, broader end-to-end tests, production email configuration, and Android/iOS release QA. The sample bicycles and approximate stand locations are local demo data, not an authoritative IITK fleet register.
+
 ## Phase 0: scaffold
 
 - The monorepo above, with both apps starting and showing a placeholder
