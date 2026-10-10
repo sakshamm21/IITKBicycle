@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Bike, Profile, Ride, Session, Stand, cancelRide, getProfile, listBikes, listRides, listStands, reportIssue, requestRide, signIn, signOut, signUp } from '@iitk-bicycle/shared';
+import type { Bike, Profile, Ride, Session, Stand } from '@iitk-bicycle/shared';
+import { cancelRide, getProfile, listBikes, listRides, listStands, reportIssue, requestRide, signIn, signOut, signUp } from '@iitk-bicycle/shared';
 
 const green = '#1c6b45', ink = '#17231d', muted = '#69776d';
 function Button({ title, onPress, secondary = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) {
