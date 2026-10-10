@@ -2,10 +2,10 @@
 
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Bike, Issue, Profile, Ride, Session, Stand } from "@iitk-bicycle/shared";
 import {
-  Bike, Issue, Profile, Ride, Session, Stand, approveRider, completeRide, getProfile,
-  inviteGuest, isStaff, listBikes, listIssues, listProfiles, listRides, listStands,
-  releaseRide, signIn, signOut, updateIssue,
+  approveRider, completeRide, getProfile, inviteGuest, isStaff, listBikes, listIssues,
+  listProfiles, listRides, listStands, releaseRide, signIn, signOut, updateIssue,
 } from "@iitk-bicycle/shared";
 
 type Section = "overview" | "riders" | "fleet" | "rides" | "issues" | "guests";
