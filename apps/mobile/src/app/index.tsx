@@ -17,7 +17,10 @@ export default function HomeScreen() {
   const [mode,setMode] = useState<'signin'|'signup'>('signin'), [email,setEmail] = useState(''), [password,setPassword] = useState(''), [name,setName] = useState('');
   const [code,setCode] = useState(''), [issueCode,setIssueCode] = useState(''), [issueType,setIssueType] = useState('other'), [issueDescription,setIssueDescription] = useState(''), [tab,setTab] = useState<'home'|'rides'|'safety'|'profile'>('home');
   const load = useCallback(async (x:Session) => { setLoading(true); setError(''); try { const p = await getProfile(x.access_token,x.user.id); setProfile(p); if (p?.status === 'approved') { const [b,st,r] = await Promise.all([listBikes(x.access_token),listStands(x.access_token),listRides(x.access_token)]); setBikes(b);setStands(st);setRides(r); } else { setBikes([]);setStands([]);setRides([]); } } catch(e) { setError(e instanceof Error ? e.message : 'Could not load campus data.'); } finally {setLoading(false);setRefreshing(false);} },[]);
+  // Synchronize authenticated session changes with the remote Supabase API.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(()=>{if(session) void load(session)},[session,load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
   const available = useMemo(()=>bikes.filter(b=>b.status==='available'),[bikes]);
   const openRide = useMemo(()=>rides.find(r=>['requested','active'].includes(r.status)),[rides]);
   async function auth(){setError('');if(!email.trim()||!password){setError('Enter your email and password.');return}if(mode==='signup'&&!name.trim()){setError('Enter your full name.');return}setLoading(true);try{if(mode==='signup'){const x=await signUp(email,password,name);if('access_token' in x)setSession(x as Session);else{setError('Check your inbox for the verification link, then sign in.');setMode('signin')}}else setSession(await signIn(email,password))}catch(e){setError(e instanceof Error?e.message:'Sign in failed.')}finally{setLoading(false)}}
