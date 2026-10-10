@@ -1,64 +1,76 @@
 # IITK Bicycle
 
-A campus-owned bicycle pool for everyone at IIT Kanpur. Bikes sit at stands
-around campus. A rider scans the QR label on a bike, gets the code for its
-combination lock, rides, and drops the bike at any stand. College staff run the
-fleet from a web console. The design is multi-college from day one, so other
-campuses can be added later without a rewrite.
+A campus-owned bicycle pool for IIT Kanpur. Riders sign up with institutional email, wait for eligibility approval, find a bicycle and request it by its printed code. Campus attendants verify the hand-off and return; administrators manage rider approvals, fleet operations, guest invitations and issue reports.
 
-Everything runs on free tiers: Supabase (database, auth, storage), Vercel
-Hobby (admin console), OpenFreeMap tiles (maps) and GitHub Actions (CI).
-
-## What is in this repo
+The repo is a pnpm monorepo designed for local-first development:
 
 | Path | What it is |
 | --- | --- |
-| `apps/mobile` | Rider app. Expo + expo-router, for Android, iOS and web. App ID `com.sakshamm21.iitkbicycle`. |
-| `apps/admin` | Admin console. Next.js App Router + Tailwind, hosted on Vercel. |
-| `packages/shared` | Database types, zod schemas and constants used by both apps. |
-| `supabase` | Migrations, seed data and pgTAP database tests. |
-| `e2e` | Maestro flows for the rider app. |
-| `docs` | [The plan](docs/PLAN.md) and the [setup guide](docs/SETUP.md). |
+| `apps/mobile` | Expo + expo-router rider app for Android, iOS and web |
+| `apps/admin` | Responsive Next.js staff console |
+| `packages/shared` | Shared TypeScript models, validation and Supabase API client |
+| `supabase` | PostgreSQL schema, row-level security, guarded ride RPCs, local seed data and pgTAP tests |
+| `e2e` | End-to-end test planning and flows |
+| `docs/PLAN.md` | Product scope and architecture |
+| `docs/SETUP.md` | Exact local setup, email verification and local admin bootstrap |
 
-## Status
+## Local quick start
 
-Phase 0 (scaffold) is done: both apps start and show a placeholder screen.
-The backend, admin console and rider app follow in the phases listed in
-[docs/PLAN.md](docs/PLAN.md).
-
-## Quick start
-
-You need Node 20 or newer and pnpm 11.
+Requirements: Node.js 22, pnpm 11, Git and Docker.
 
 ```bash
-pnpm install
+git clone https://github.com/sakshamm21/IITKBicycle.git
+cd IITKBicycle
+corepack enable
+corepack prepare pnpm@11.22.0 --activate
+pnpm install --frozen-lockfile
+pnpm db:start
+pnpm db:reset
+pnpm exec supabase status
 ```
+
+Copy the local API URL and anon/publishable key printed by `supabase status` into the environment files:
+
+```bash
+cp apps/admin/.env.example apps/admin/.env.local
+cp apps/mobile/.env.example apps/mobile/.env.local
+```
+
+Set each app's Supabase URL to `http://127.0.0.1:54321` and replace the placeholder key with the **local anon/publishable key** (never the service-role key). See [docs/SETUP.md](docs/SETUP.md) to verify a test email and bootstrap a local administrator.
+
+Run each app in a separate terminal:
 
 ```bash
 pnpm dev:admin
-```
-
-```bash
 pnpm dev:mobile
 ```
 
-`pnpm dev:admin` serves the admin console at http://localhost:3000.
-`pnpm dev:mobile` starts Expo; press `w` for the web build or scan the QR code
-with Expo Go. See [docs/SETUP.md](docs/SETUP.md) for environment files, the
-local database and the checks CI runs.
+- Admin console: http://localhost:3000
+- Rider app: press `w` in the Expo terminal for web, or scan the Expo QR code with Expo Go
+- Local Supabase Studio: http://127.0.0.1:54323
+- Local email inbox: http://127.0.0.1:54324
 
 ## Checks
 
 ```bash
 pnpm typecheck
-```
-
-```bash
 pnpm lint
-```
-
-```bash
 pnpm test
+pnpm build:admin
+pnpm --filter @iitk-bicycle/mobile export:web
+pnpm db:test
 ```
 
-Database tests (`pnpm db:test`) need Docker and run in CI on every push.
+GitHub Actions runs typecheck, lint, unit tests, admin production build, rider web export and local database tests on pushes and pull requests.
+
+## Security and rollout notes
+
+- Client apps use only the Supabase anon/publishable key. Database RLS and checked RPCs enforce access; never ship a service-role key or database secret.
+- Institutional email verification and eligibility approval are separate. Campus members need administrator approval; guests must be invited by an authorized administrator and verify that exact email.
+- A QR label identifies the bicycle but does not operate its physical lock. This MVP uses attendant-verified release and return; it never sends a combination code to the rider app.
+- The local seed contains sample stands and 30 sample bicycles. It is demo inventory, not an authoritative inventory of real campus bikes.
+- Do not use the local administrator bootstrap SQL against a live project without reviewing the account and access policy first.
+
+## Product status
+
+The repository now includes a working local-first MVP foundation: sign-up/sign-in, email verification flow, eligibility state, bike discovery/manual code requests, attendant release/return, guest invitations, staff dashboards and issue workflow. Production launch still requires real-campus verification, an authorized production admin, mail delivery and redirect configuration, reviewed migrations, and device-level QA.

@@ -18,7 +18,7 @@ describe("shared constants and schemas", () => {
     expect(lockCodeSchema.safeParse("12a4").success).toBe(false);
   });
 
-  it("knows the three roles", () => {
-    expect(userRoleSchema.options).toEqual(["rider", "college_admin", "super_admin"]);
+  it("knows all database roles", () => {
+    expect(userRoleSchema.options).toEqual(["rider", "attendant", "college_admin", "super_admin"]);
   });
 });

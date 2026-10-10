@@ -1,10 +1,104 @@
-import { APP_NAME } from "@iitk-bicycle/shared";
+"use client";
 
-export default function Home() {
-  return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight">{APP_NAME}</h1>
-      <p className="text-sm opacity-70">Admin console. Coming soon.</p>
-    </main>
-  );
+import type { FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Bike, Issue, Profile, Ride, Session, Stand } from "@iitk-bicycle/shared";
+import {
+  approveRider, completeRide, getProfile, inviteGuest, isStaff, listBikes, listIssues,
+  listProfiles, listRides, listStands, releaseRide, signIn, signOut, updateIssue,
+} from "@iitk-bicycle/shared";
+
+type Section = "overview" | "riders" | "fleet" | "rides" | "issues" | "guests";
+const nav: { id: Section; label: string; icon: string }[] = [
+  { id: "overview", label: "Overview", icon: "◫" }, { id: "riders", label: "Rider approvals", icon: "♙" },
+  { id: "fleet", label: "Fleet & stands", icon: "↗" }, { id: "rides", label: "Ride operations", icon: "↻" },
+  { id: "issues", label: "Issue reports", icon: "⚑" }, { id: "guests", label: "Guest access", icon: "＋" },
+];
+const human = (s: string) => s.replaceAll("_", " ");
+export default function AdminHome() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [section, setSection] = useState<Section>("overview");
+  const [bikes, setBikes] = useState<Bike[]>([]);
+  const [stands, setStands] = useState<Stand[]>([]);
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const load = useCallback(async (s: Session) => {
+    setLoading(true); setError("");
+    try {
+      const [p, b, st, r, users, reports] = await Promise.all([
+        getProfile(s.access_token, s.user.id), listBikes(s.access_token), listStands(s.access_token),
+        listRides(s.access_token), listProfiles(s.access_token), listIssues(s.access_token),
+      ]);
+      setProfile(p); setBikes(b); setStands(st); setRides(r); setProfiles(users); setIssues(reports);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not load admin data."); }
+    finally { setLoading(false); }
+  }, []);
+
+  // These effects hydrate and synchronize persisted authentication/API state.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("iitk-bicycle-admin-session");
+      if (raw) setSession(JSON.parse(raw) as Session);
+    } catch { window.localStorage.removeItem("iitk-bicycle-admin-session"); }
+  }, []);
+  useEffect(() => { if (session) void load(session); }, [session, load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const pending = useMemo(() => profiles.filter(p => p.status === "pending"), [profiles]);
+  const activeRides = useMemo(() => rides.filter(r => r.status === "active"), [rides]);
+  const requestedRides = useMemo(() => rides.filter(r => r.status === "requested"), [rides]);
+  const available = useMemo(() => bikes.filter(b => b.status === "available"), [bikes]);
+
+  async function login(e: FormEvent) {
+    e.preventDefault(); setLoading(true); setError("");
+    try {
+      const s = await signIn(email, password); setSession(s);
+      window.localStorage.setItem("iitk-bicycle-admin-session", JSON.stringify(s));
+    } catch (e) { setError(e instanceof Error ? e.message : "Sign in failed."); }
+    finally { setLoading(false); }
+  }
+  async function runAction(action: () => Promise<unknown>, success: string) {
+    if (!session) return;
+    setLoading(true); setError(""); setNotice("");
+    try { await action(); setNotice(success); await load(session); }
+    catch (e) { setError(e instanceof Error ? e.message : "Action could not be completed."); }
+    finally { setLoading(false); }
+  }
+  async function logout() {
+    if (session) try { await signOut(session.access_token); } catch {}
+    window.localStorage.removeItem("iitk-bicycle-admin-session"); setSession(null); setProfile(null);
+  }
+
+  if (!session) return <main className="login-shell"><div className="login-aside"><div className="brand"><span className="brand-symbol">↗</span><span>IITK <b>BICYCLE</b></span></div><div className="login-copy"><span className="eyebrow">CAMPUS MOBILITY · OPERATIONS</span><h1>Keep the<br/>campus moving.</h1><p>A calmer way to manage bicycles, riders and returns. One campus, one live operations desk.</p><div className="login-stat"><span>01</span><span>People first. Every hand-off verified.</span></div></div><div className="aside-foot">INDIAN INSTITUTE OF TECHNOLOGY KANPUR</div></div><section className="login-main"><form className="login-card" onSubmit={login}><div className="login-icon">⌘</div><span className="eyebrow">ADMIN CONSOLE</span><h2>Welcome back.</h2><p>Sign in with your approved campus staff account.</p><label>Email address<input type="email" autoComplete="username" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@iitk.ac.in"/></label><label>Password<input type="password" autoComplete="current-password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Your password"/></label>{error&&<div className="alert error">{error}</div>}<button className="primary wide" disabled={loading}>{loading?"Signing in…":"Sign in to operations ↗"}</button><p className="login-hint">Admin access is restricted to approved campus staff. For a local demo, follow the setup guide.</p></form></section></main>;
+
+  if (!profile || !isStaff(profile)) return <main className="login-shell"><section className="login-main full"><div className="login-card"><div className="login-icon">!</div><h2>Staff access required</h2><p>This account is not approved for the operations console. Sign in with an authorized attendant or campus administrator account.</p>{error&&<div className="alert error">{error}</div>}<button className="primary wide" onClick={()=>void logout()}>Sign out</button></div></section></main>;
+
+  return <main className="app-shell"><aside className="sidebar"><div className="brand"><span className="brand-symbol">↗</span><span>IITK <b>BICYCLE</b></span></div><div className="campus-tag"><span className="green-dot"/> IIT KANPUR CAMPUS</div><div className="nav-label">WORKSPACE</div><nav>{nav.map(n=><button key={n.id} className={section===n.id?"nav-item selected":"nav-item"} onClick={()=>setSection(n.id)}><span className="nav-icon">{n.icon}</span>{n.label}{n.id==="riders"&&pending.length>0&&<span className="nav-count">{pending.length}</span>}{n.id==="rides"&&requestedRides.length>0&&<span className="nav-count">{requestedRides.length}</span>}</button>)}</nav><div className="sidebar-bottom"><div className="side-profile"><div className="mini-avatar">{(profile.full_name||"A")[0].toUpperCase()}</div><div className="side-person"><b>{profile.full_name||"Campus staff"}</b><span>{human(profile.role)}</span></div><button className="logout-icon" title="Sign out" onClick={()=>void logout()}>↗</button></div><div className="system-state"><span className="green-dot"/> Connected to campus data</div></div></aside>
+    <section className="workspace"><header className="topbar"><div className="breadcrumbs">Workspace <span>/</span> <b>{nav.find(n=>n.id===section)?.label}</b></div><div className="top-actions"><span className="live-chip"><span className="green-dot"/> Live workspace</span><button className="icon-button" onClick={()=>void load(session)} title="Refresh data">↻</button><div className="mini-avatar">{(profile.full_name||"A")[0].toUpperCase()}</div></div></header>
+      <div className="page-wrap"><div className="page-heading"><div><span className="eyebrow">IITK · FLEET OPERATIONS</span><h1>{section==="overview"?"Good day, "+(profile.full_name?.split(" ")[0]||"team")+".":nav.find(n=>n.id===section)?.label}</h1><p>{section==="overview"?"Here’s the pulse of your campus bicycle network.":section==="riders"?"Review accounts before riders join the campus fleet.":section==="fleet"?"A clear view of bicycles and their current availability.":section==="rides"?"Verify hand-offs and keep bicycle circulation moving.":section==="issues"?"Follow up on safety reports and keep bikes road-ready.":"Invite approved guests before they create an account."}</p></div><button className="outline" onClick={()=>void load(session)}>↻ &nbsp; Refresh data</button></div>
+      {error&&<div className="alert error">{error}</div>}{notice&&<div className="alert success">{notice}</div>}{loading&&<div className="loading-line"><span className="spinner"/> Updating campus data…</div>}
+      {section==="overview"&&<><div className="metric-grid"><Metric label="Available bicycles" value={available.length} detail="Ready for a new ride" icon="🚲" tone="green"/><Metric label="Active rides" value={activeRides.length} detail="Currently checked out" icon="↗" tone="blue"/><Metric label="Awaiting release" value={requestedRides.length} detail="Needs attendant check" icon="◷" tone="amber"/><Metric label="Pending riders" value={pending.length} detail="Eligibility review" icon="♙" tone="violet"/></div><div className="dashboard-grid"><div className="panel"><div className="panel-head"><div><h3>Needs attention</h3><p>Actions that keep the fleet moving</p></div><span className="subtle-chip">{pending.length+requestedRides.length+issues.filter(i=>i.status!=="resolved").length} open</span></div>{pending.length===0&&requestedRides.length===0&&issues.every(i=>i.status==="resolved")?<Empty title="You’re all caught up" text="New approvals, ride requests and safety reports will appear here."/>:<div className="attention-list">{pending.slice(0,3).map(p=><div className="attention-row" key={p.id}><span className="attention-icon amber-bg">♙</span><div className="attention-copy"><b>{p.full_name||p.email}</b><span>Rider waiting for approval</span></div><button className="text-action" onClick={()=>setSection("riders")}>Review ↗</button></div>)}{requestedRides.slice(0,3).map(r=><div className="attention-row" key={r.id}><span className="attention-icon green-bg">↻</span><div className="attention-copy"><b>{bikes.find(b=>b.id===r.bike_id)?.short_code||"Bicycle request"}</b><span>Waiting for release verification</span></div><button className="text-action" onClick={()=>setSection("rides")}>Verify ↗</button></div>)}{issues.filter(i=>i.status!=="resolved").slice(0,3).map(i=><div className="attention-row" key={i.id}><span className="attention-icon red-bg">⚑</span><div className="attention-copy"><b>{human(i.issue_type)}</b><span>Open bicycle issue report</span></div><button className="text-action" onClick={()=>setSection("issues")}>Review ↗</button></div>)}</div>}</div><div className="panel"><div className="panel-head"><div><h3>Fleet status</h3><p>Current bicycle availability</p></div><button className="text-action" onClick={()=>setSection("fleet")}>View fleet ↗</button></div><div className="fleet-total"><strong>{bikes.length}</strong><span>bicycles registered</span></div>{[["Available","available","#28734b"],["In a ride","in_ride","#4779bd"],["Reserved","reserved","#b78023"],["Maintenance","maintenance","#b74c45"],["Missing","missing","#7b647e"]].map(([label,status,color])=><div className="bar-row" key={status}><span>{label}</span><div className="bar-track"><span style={{width:(bikes.length?Math.round(bikes.filter(b=>b.status===status).length/bikes.length*100):0)+"%",background:color}}/></div><b>{bikes.filter(b=>b.status===status).length}</b></div>)}</div></div><div className="panel recent-panel"><div className="panel-head"><div><h3>Recent ride activity</h3><p>Latest requests and returns</p></div><button className="text-action" onClick={()=>setSection("rides")}>All rides ↗</button></div><RideTable rides={rides.slice(0,5)} bikes={bikes} profiles={profiles}/></div></>}
+      {section==="riders"&&<div className="panel"><div className="panel-head"><div><h3>Rider eligibility</h3><p>Email-verified accounts in your campus</p></div><span className="subtle-chip">{pending.length} pending</span></div>{profiles.length?<div className="table-scroll"><table><thead><tr><th>RIDER</th><th>MEMBERSHIP</th><th>STATUS</th><th>REGISTERED</th><th>ACTION</th></tr></thead><tbody>{profiles.map(p=><tr key={p.id}><td><div className="table-person"><span className="table-avatar">{(p.full_name||p.email)[0].toUpperCase()}</span><span><b>{p.full_name||"Unnamed rider"}</b><small>{p.email}</small></span></div></td><td>{human(p.member_type)}</td><td><Status value={p.status}/></td><td>—</td><td>{p.status==="pending"&&<button className="small-primary" disabled={loading} onClick={()=>void runAction(()=>approveRider(session.access_token,p.id),"Rider approved.")}>Approve</button>}</td></tr>)}</tbody></table></div>:<Empty title="No rider profiles found" text="Verified and eligible accounts will appear here."/>}</div>}
+      {section==="fleet"&&<><div className="metric-grid three"><Metric label="Total bicycles" value={bikes.length} detail="Registered in this campus" icon="🚲" tone="green"/><Metric label="Active stands" value={stands.length} detail="Pickup and return points" icon="⌖" tone="blue"/><Metric label="Need attention" value={bikes.filter(b=>["maintenance","missing"].includes(b.status)).length} detail="Unavailable for rides" icon="⚑" tone="amber"/></div><div className="panel"><div className="panel-head"><div><h3>Bicycle inventory</h3><p>Operational status for each bicycle</p></div></div>{bikes.length?<div className="table-scroll"><table><thead><tr><th>BIKE ID</th><th>CURRENT STAND</th><th>STATUS</th><th>NOTES</th></tr></thead><tbody>{bikes.map(b=><tr key={b.id}><td><b>{b.short_code}</b></td><td>{stands.find(s=>s.id===b.stand_id)?.name||"—"}</td><td><Status value={b.status}/></td><td>{b.notes||"—"}</td></tr>)}</tbody></table></div>:<Empty title="No bicycles registered yet" text="Add the first fleet inventory through a reviewed database migration or admin tooling."/>}</div><div className="panel stands-panel"><div className="panel-head"><div><h3>Campus stands</h3><p>Pickup and return locations</p></div></div><div className="stand-grid">{stands.map(st=><div className="stand-card" key={st.id}><span className="stand-pin">⌖</span><b>{st.name}</b><span>{bikes.filter(b=>b.stand_id===st.id&&b.status==="available").length} available bikes</span><small>Capacity {st.capacity} · {st.latitude.toFixed(4)}, {st.longitude.toFixed(4)}</small></div>)}</div></div></>}
+      {section==="rides"&&<div className="panel"><div className="panel-head"><div><h3>Ride operations</h3><p>Release requests and verify bicycle returns in person</p></div><span className="subtle-chip">{requestedRides.length} waiting</span></div>{rides.length?<div className="table-scroll"><table><thead><tr><th>BICYCLE</th><th>RIDER</th><th>REQUESTED</th><th>STATUS</th><th>HAND-OFF</th></tr></thead><tbody>{rides.map(r=><tr key={r.id}><td><b>{bikes.find(b=>b.id===r.bike_id)?.short_code||"Bicycle"}</b></td><td>{profiles.find(p=>p.id===r.rider_id)?.full_name||profiles.find(p=>p.id===r.rider_id)?.email||r.rider_id.slice(0,8)}</td><td>{new Date(r.requested_at).toLocaleString()}</td><td><Status value={r.status}/></td><td>{r.status==="requested"?<button className="small-primary" disabled={loading} onClick={()=>void runAction(()=>releaseRide(session.access_token,r.id),"Ride released. Confirm the bicycle and combination lock with the rider.")}>Verify release</button>:r.status==="active"?<ReturnAction stands={stands} disabled={loading} onReturn={(standId,notes)=>void runAction(()=>completeRide(session.access_token,r.id,standId,notes),"Bicycle return confirmed.")}/>:<span className="muted">Completed</span>}</td></tr>)}</tbody></table></div>:<Empty title="No ride requests yet" text="Rider requests will appear here as soon as the campus fleet is in use."/>}</div>}
+      {section==="issues"&&<div className="panel"><div className="panel-head"><div><h3>Safety & maintenance</h3><p>Track bicycle reports through resolution</p></div><span className="subtle-chip">{issues.filter(i=>i.status!=="resolved").length} open</span></div>{issues.length?<div className="table-scroll"><table><thead><tr><th>ISSUE</th><th>BICYCLE</th><th>REPORTED</th><th>STATUS</th><th>UPDATE</th></tr></thead><tbody>{issues.map(i=><tr key={i.id}><td><b>{human(i.issue_type)}</b><small className="description">{i.description||"No additional details"}</small></td><td>{bikes.find(b=>b.id===i.bike_id)?.short_code||"—"}</td><td>{new Date(i.created_at).toLocaleDateString()}</td><td><Status value={i.status}/></td><td>{i.status!=="resolved"&&<select className="status-select" value={i.status} disabled={loading} onChange={e=>void runAction(()=>updateIssue(session.access_token,i.id,e.target.value),"Issue status updated.")}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select>}</td></tr>)}</tbody></table></div>:<Empty title="No issue reports" text="Reports from riders will show here for staff follow-up."/>}</div>}
+      {section==="guests"&&<div className="guest-layout"><div className="panel guest-form"><div className="guest-icon">＋</div><h3>Invite a campus guest</h3><p>Guests must be explicitly invited by an authorized campus administrator before signing up. They still need to verify their email address.</p><form onSubmit={e=>{e.preventDefault();void runAction(()=>inviteGuest(session.access_token,guestEmail),"Guest invitation saved. The person can now sign up with this exact email.");setGuestEmail("")}}><label>Guest email address<input type="email" required value={guestEmail} onChange={e=>setGuestEmail(e.target.value)} placeholder="guest@example.com"/></label><button className="primary" disabled={loading||!guestEmail.trim()}>Approve guest email ↗</button></form><div className="privacy-note">Invitation grants eligibility to register for this campus. Never invite an address without the guest’s consent.</div></div><div className="panel guest-explainer"><span className="eyebrow">ACCESS POLICY</span><h3>Verified by design.</h3>{[["01","Invite","An authorized admin enters the exact guest email."],["02","Verify","The guest confirms ownership through the email verification link."],["03","Ride","The account becomes eligible and each bike hand-off is verified by staff."]].map(([n,t,d])=><div className="step-row" key={n}><span>{n}</span><div><b>{t}</b><p>{d}</p></div></div>)}</div></div>}
+      <footer className="page-footer"><span>IITK BICYCLE · CAMPUS OPERATIONS</span><span>Protect people. Protect the fleet.</span></footer>
+      </div></section></main>;
 }
+
+function Metric({label,value,detail,icon,tone}:{label:string;value:number;detail:string;icon:string;tone:string}){return <div className="metric-card"><div className="metric-top"><span>{label}</span><span className={"metric-icon "+tone}>{icon}</span></div><strong>{value}</strong><small>{detail}</small></div>}
+function Status({value}:{value:string}){return <span className={"status-badge "+value}>{human(value)}</span>}
+function Empty({title,text}:{title:string;text:string}){return <div className="empty-state"><span>✳</span><b>{title}</b><p>{text}</p></div>}
+function RideTable({rides,bikes,profiles}:{rides:Ride[];bikes:Bike[];profiles:Profile[]}){return rides.length?<div className="table-scroll"><table><thead><tr><th>BICYCLE</th><th>RIDER</th><th>REQUESTED</th><th>STATUS</th></tr></thead><tbody>{rides.map(r=><tr key={r.id}><td><b>{bikes.find(b=>b.id===r.bike_id)?.short_code||"Bicycle"}</b></td><td>{profiles.find(p=>p.id===r.rider_id)?.full_name||r.rider_id.slice(0,8)}</td><td>{new Date(r.requested_at).toLocaleString()}</td><td><Status value={r.status}/></td></tr>)}</tbody></table></div>:<Empty title="No ride activity yet" text="Recent rides will appear here."/>}
+function ReturnAction({stands,disabled,onReturn}:{stands:Stand[];disabled:boolean;onReturn:(standId:string,notes:string)=>void}){const [stand,setStand]=useState("");const [notes,setNotes]=useState("");const selectedStand=stand||stands[0]?.id||"";return <div className="return-action"><select className="status-select" value={selectedStand} onChange={e=>setStand(e.target.value)} aria-label="Return stand">{stands.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><input className="return-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional notes" aria-label="Return notes"/><button className="small-primary" disabled={disabled||!selectedStand} onClick={()=>onReturn(selectedStand,notes)}>Confirm return</button></div>}
