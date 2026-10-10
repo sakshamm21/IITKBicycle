@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bike, Issue, Profile, Ride, Session, Stand, approveRider, completeRide, getProfile,
@@ -55,7 +56,7 @@ export default function AdminHome() {
   const requestedRides = useMemo(() => rides.filter(r => r.status === "requested"), [rides]);
   const available = useMemo(() => bikes.filter(b => b.status === "available"), [bikes]);
 
-  async function login(e: React.FormEvent) {
+  async function login(e: FormEvent) {
     e.preventDefault(); setLoading(true); setError("");
     try {
       const s = await signIn(email, password); setSession(s);
