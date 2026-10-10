@@ -43,17 +43,16 @@ export default function AdminHome() {
     finally { setLoading(false); }
   }, []);
 
-  // This effect hydrates persisted authentication from the browser.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  // These effects hydrate and synchronize persisted authentication/API state.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("iitk-bicycle-admin-session");
       if (raw) setSession(JSON.parse(raw) as Session);
     } catch { window.localStorage.removeItem("iitk-bicycle-admin-session"); }
   }, []);
-  // This effect synchronizes the dashboard with the authenticated API session.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (session) void load(session); }, [session, load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const pending = useMemo(() => profiles.filter(p => p.status === "pending"), [profiles]);
   const activeRides = useMemo(() => rides.filter(r => r.status === "active"), [rides]);
