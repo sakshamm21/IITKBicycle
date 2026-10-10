@@ -43,12 +43,16 @@ export default function AdminHome() {
     finally { setLoading(false); }
   }, []);
 
+  // This effect hydrates persisted authentication from the browser.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem("iitk-bicycle-admin-session");
       if (raw) setSession(JSON.parse(raw) as Session);
     } catch { window.localStorage.removeItem("iitk-bicycle-admin-session"); }
   }, []);
+  // This effect synchronizes the dashboard with the authenticated API session.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (session) void load(session); }, [session, load]);
 
   const pending = useMemo(() => profiles.filter(p => p.status === "pending"), [profiles]);
@@ -98,4 +102,4 @@ function Metric({label,value,detail,icon,tone}:{label:string;value:number;detail
 function Status({value}:{value:string}){return <span className={"status-badge "+value}>{human(value)}</span>}
 function Empty({title,text}:{title:string;text:string}){return <div className="empty-state"><span>✳</span><b>{title}</b><p>{text}</p></div>}
 function RideTable({rides,bikes,profiles}:{rides:Ride[];bikes:Bike[];profiles:Profile[]}){return rides.length?<div className="table-scroll"><table><thead><tr><th>BICYCLE</th><th>RIDER</th><th>REQUESTED</th><th>STATUS</th></tr></thead><tbody>{rides.map(r=><tr key={r.id}><td><b>{bikes.find(b=>b.id===r.bike_id)?.short_code||"Bicycle"}</b></td><td>{profiles.find(p=>p.id===r.rider_id)?.full_name||r.rider_id.slice(0,8)}</td><td>{new Date(r.requested_at).toLocaleString()}</td><td><Status value={r.status}/></td></tr>)}</tbody></table></div>:<Empty title="No ride activity yet" text="Recent rides will appear here."/>}
-function ReturnAction({stands,disabled,onReturn}:{stands:Stand[];disabled:boolean;onReturn:(standId:string,notes:string)=>void}){const [stand,setStand]=useState(stands[0]?.id||"");const [notes,setNotes]=useState("");useEffect(()=>{if(!stand&&stands[0])setStand(stands[0].id)},[stand,stands]);return <div className="return-action"><select className="status-select" value={stand} onChange={e=>setStand(e.target.value)} aria-label="Return stand">{stands.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><input className="return-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional notes" aria-label="Return notes"/><button className="small-primary" disabled={disabled||!stand} onClick={()=>onReturn(stand,notes)}>Confirm return</button></div>}
+function ReturnAction({stands,disabled,onReturn}:{stands:Stand[];disabled:boolean;onReturn:(standId:string,notes:string)=>void}){const [stand,setStand]=useState("");const [notes,setNotes]=useState("");const selectedStand=stand||stands[0]?.id||"";return <div className="return-action"><select className="status-select" value={selectedStand} onChange={e=>setStand(e.target.value)} aria-label="Return stand">{stands.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><input className="return-notes" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Optional notes" aria-label="Return notes"/><button className="small-primary" disabled={disabled||!selectedStand} onClick={()=>onReturn(selectedStand,notes)}>Confirm return</button></div>}
