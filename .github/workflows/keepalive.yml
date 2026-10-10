@@ -1,0 +1,36 @@
+name: Keep Supabase awake
+
+# Free Supabase projects pause after a week without activity. This pings the
+# project once a day. Both values below are public (they ship in the apps).
+# Once the schema exists this will also call the demo reset function.
+
+on:
+  schedule:
+    - cron: "17 2 * * *" # 07:47 IST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_URL: https://jwyamfjoisycodwelpys.supabase.co
+  SUPABASE_PUBLISHABLE_KEY: sb_publishable_LfjvjoCm6-VckxQ373umLQ_BTx6dqBw
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the Auth and REST endpoints
+        run: |
+          auth=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/auth/v1/settings")
+          rest=$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" "$SUPABASE_URL/rest/v1/")
+          echo "auth/v1/settings -> $auth"
+          echo "rest/v1/         -> $rest"
+          # REST answers 401 for the schema listing with a publishable key; that
+          # still reaches the project. Auth must answer 200.
+          if [ "$auth" != "200" ]; then
+            echo "Supabase did not answer as expected. Is the project paused?"
+            exit 1
+          fi

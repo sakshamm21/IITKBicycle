@@ -1,0 +1,2 @@
+-- Local seed data. Filled in with the IITK college, stands, bikes and demo
+-- accounts when the schema lands (Phase 1).

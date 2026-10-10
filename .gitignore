@@ -1,0 +1,26 @@
+node_modules/
+.pnpm-store/
+
+# env files: only the .env.example files are committed
+.env
+.env.*
+!.env.example
+
+# build output
+dist/
+.next/
+out/
+.expo/
+web-build/
+coverage/
+*.tsbuildinfo
+
+# supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# tooling
+.claude/settings.local.json
+.vercel/
+.DS_Store
+*.log
