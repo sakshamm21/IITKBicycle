@@ -2,24 +2,24 @@ import { z } from "zod";
 
 import { LOCK_CODE_LENGTH } from "./constants";
 
-export const userRoleSchema = z.enum(["rider", "college_admin", "super_admin"]);
+export const userRoleSchema = z.enum(["rider", "attendant", "college_admin", "super_admin"]);
 export type UserRole = z.infer<typeof userRoleSchema>;
 
 export const profileStatusSchema = z.enum(["pending", "approved", "rejected", "suspended"]);
 export type ProfileStatus = z.infer<typeof profileStatusSchema>;
 
-export const bikeStatusSchema = z.enum(["available", "in_ride", "maintenance", "missing", "retired"]);
+export const bikeStatusSchema = z.enum(["available", "reserved", "in_ride", "maintenance", "missing", "retired"]);
 export type BikeStatus = z.infer<typeof bikeStatusSchema>;
 
-export const rideStatusSchema = z.enum(["active", "completed", "force_ended"]);
+export const rideStatusSchema = z.enum(["requested", "active", "completed", "cancelled", "force_ended"]);
 export type RideStatus = z.infer<typeof rideStatusSchema>;
 
 export const issueTypeSchema = z.enum([
   "flat_tyre",
   "brakes",
   "chain",
-  "lock_code_wrong",
-  "bike_missing",
+  "lock",
+  "missing",
   "other",
 ]);
 export type IssueType = z.infer<typeof issueTypeSchema>;
