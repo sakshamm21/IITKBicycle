@@ -1,5 +1,6 @@
+declare const process: { env: { EXPO_PUBLIC_SUPABASE_URL?: string; NEXT_PUBLIC_SUPABASE_URL?: string; EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string; NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string } };
 const env = {
-  url: (typeof process !== "undefined" ? process.env.EXPO_PUBLIC_SUPABASE_URL : undefined) || (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined) || "https://jwyamfjoisycodwelpys.supabase.co",
+  url: (typeof process !== "undefined" ? process.env.EXPO_PUBLIC_SUPABASE_URL : undefined) || (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined) || "http://127.0.0.1:54321",
   key: (typeof process !== "undefined" ? process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY : undefined) || (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY : undefined) || "",
 };
 export type Session = { access_token: string; refresh_token?: string; user: { id: string; email?: string; user_metadata?: Record<string, unknown> } };
