@@ -159,12 +159,13 @@ begin
     if v_college.id is not null then v_member_type := 'guest'; end if;
   end if;
 
-  if v_college.id is not null and new.email_confirmed_at is not null then
-    v_status := 'approved';
-    if v_member_type = 'guest' then
-      update public.guest_invitations set used_at = now()
-        where college_id = v_college.id and lower(email) = v_email and used_at is null;
-    end if;
+  -- Institutional email identifies the campus but does not itself grant riding eligibility.
+  -- Campus members remain pending until a college administrator approves them.
+  -- An invited guest is eligible only after confirming the invited email.
+  if v_college.id is not null and v_member_type = 'guest' then
+    update public.guest_invitations set used_at = now()
+      where college_id = v_college.id and lower(email) = v_email and used_at is null;
+    if new.email_confirmed_at is not null then v_status := 'approved'; end if;
   end if;
 
   insert into public.profiles(id, college_id, email, full_name, role, status, member_type)
