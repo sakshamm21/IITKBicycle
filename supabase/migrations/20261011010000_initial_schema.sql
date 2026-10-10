@@ -277,7 +277,14 @@ begin
   end if;
   update public.rides set status='completed',ended_at=now(),end_stand_id=p_return_stand_id,
     return_verified_by=auth.uid(),return_notes=left(coalesce(p_notes,''),1000) where id=v_ride.id;
-  update public.bikes set status='available',stand_id=p_return_stand_id,updated_at=now() where id=v_ride.bike_id;
+  update public.bikes set
+    status = case
+      when exists (select 1 from public.issue_reports i where i.bike_id=v_ride.bike_id and i.status <> 'resolved' and i.issue_type='missing') then 'missing'
+      when exists (select 1 from public.issue_reports i where i.bike_id=v_ride.bike_id and i.status <> 'resolved' and i.issue_type in ('flat_tyre','brakes','chain')) then 'maintenance'
+      else 'available'
+    end,
+    stand_id=p_return_stand_id,updated_at=now()
+    where id=v_ride.bike_id;
   insert into public.audit_log(college_id,actor_id,action,entity_type,entity_id)
     values(v_ride.college_id,auth.uid(),'ride_returned','ride',v_ride.id::text);
 end;
