@@ -178,16 +178,12 @@ $$;
 create or replace function public.handle_email_confirmation()
 returns trigger language plpgsql security definer set search_path = ''
 as $$
-declare v_profile public.profiles%rowtype; v_domain text;
+declare v_profile public.profiles%rowtype;
 begin
   if old.email_confirmed_at is null and new.email_confirmed_at is not null then
     select * into v_profile from public.profiles where id = new.id;
-    v_domain := split_part(lower(coalesce(new.email,'')), '@', 2);
-    if v_profile.member_type = 'campus' and exists (
-      select 1 from public.colleges c where c.id = v_profile.college_id and v_domain = any(c.email_domains) and c.active
-    ) then
-      update public.profiles set status = 'approved', updated_at = now() where id = new.id and status = 'pending';
-    elsif v_profile.member_type = 'guest' then
+    -- Email verification proves ownership, not eligibility. Campus members still need staff approval.
+    if v_profile.member_type = 'guest' then
       update public.profiles set status = 'approved', updated_at = now() where id = new.id and status = 'pending'
         and exists (select 1 from public.guest_invitations g where g.college_id = v_profile.college_id and lower(g.email) = lower(new.email) and g.used_at is not null);
     end if;
